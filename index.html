@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>待辦事項系統</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      margin: 0;
+      font-family: Arial, sans-serif;
+      height: 100vh;
+    }
+    header, #editor-panel {
+      padding: 20px;
+      background: #ffffff;
+      border-bottom: 1px solid #ccc;
+    }
+    #content {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    #date-list {
+      width: 200px;
+      background: #f5f5f5;
+      border-right: 1px solid #ccc;
+      padding: 10px;
+      overflow-y: auto;
+    }
+    #date-list button {
+      display: block;
+      width: 100%;
+      margin: 5px 0;
+      padding: 10px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    #todo-panel {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .section {
+      margin-bottom: 20px;
+    }
+    .section h4 {
+      margin: 10px 0;
+    }
+    .todo-item {
+      padding: 10px 15px;
+      margin: 5px 0;
+      border-radius: 5px;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .color1 { background-color: #b71c1c; } /* 非常重要 - 深紅色 */
+    .color2 { background-color: #fbc02d; color: #000; } /* 重要 - 黃色 */
+    .color3 { background-color: #388e3c; } /* 一般 - 綠色 */
+
+    .action-btn {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    .action-btn:hover {
+      color: black;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h2>待辦事項系統</h2>
+  </header>
+
+  <div id="editor-panel">
+    <input type="text" id="item-text" placeholder="事項名稱">
+    <input type="date" id="item-date">
+    <select id="item-color">
+      <option value="color1">非常重要</option>
+      <option value="color2">重要</option>
+      <option value="color3">一般</option>
+    </select>
+    <button onclick="createItem()">新增</button>
+    <button onclick="exportTasks()">匯出</button>
+  </div>
+
+  <div id="content">
+    <div id="date-list"></div>
+    <div id="todo-panel"></div>
+  </div>
+
+  <script>
+    let itemId = 0;
+    let tasks = {}; // 儲存不同日期的資料
+    let currentDate = '';
+
+    function saveTasks() {
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+    }
+
+    function loadTasks() {
+      const stored = localStorage.getItem('tasks');
+      if (stored) {
+        tasks = JSON.parse(stored);
+      }
+    }
+
+    function switchDate(date) {
+      currentDate = date;
+      renderTasks();
+    }
+
+    function createItem() {
+      const text = document.getElementById("item-text").value;
+      const color = document.getElementById("item-color").value;
+      let date = document.getElementById("item-date").value;
+      if (text.trim() === "") return;
+      if (date === '') date = currentDate;
+
+      if (!tasks[date]) {
+        tasks[date] = { todo: [], done: [] };
+        renderDateList();
+      }
+
+      tasks[date].todo.push({ id: `item-${itemId++}`, text, color });
+      saveTasks();
+      document.getElementById("item-text").value = "";
+      document.getElementById("item-date").value = "";
+      if (currentDate === date) renderTasks();
+    }
+
+    function moveToDone(id) {
+      const task = tasks[currentDate];
+      const index = task.todo.findIndex(item => item.id === id);
+      if (index !== -1) {
+        const item = task.todo.splice(index, 1)[0];
+        task.done.push(item);
+        saveTasks();
+        renderTasks();
+      }
+    }
+
+    function moveToTodo(id) {
+      const task = tasks[currentDate];
+      const index = task.done.findIndex(item => item.id === id);
+      if (index !== -1) {
+        const item = task.done.splice(index, 1)[0];
+        task.todo.push(item);
+        saveTasks();
+        renderTasks();
+      }
+    }
+
+    function renderTasks() {
+      const panel = document.getElementById("todo-panel");
+      panel.innerHTML = '';
+      if (!tasks[currentDate]) return;
+
+      const todoSection = document.createElement("div");
+      todoSection.className = "section";
+      todoSection.innerHTML = `<h4>待辦清單 - ${currentDate}</h4>`;
+      tasks[currentDate].todo.forEach(item => {
+        const div = document.createElement("div");
+        div.className = `todo-item ${item.color}`;
+        div.innerHTML = `
+          <span>${item.text}</span>
+          <button class="action-btn" onclick="moveToDone('${item.id}')">✔</button>
+        `;
+        todoSection.appendChild(div);
+      });
+
+      const doneSection = document.createElement("div");
+      doneSection.className = "section";
+      doneSection.innerHTML = `<h4>已完成事項</h4>`;
+      tasks[currentDate].done.forEach(item => {
+        const div = document.createElement("div");
+        div.className = `todo-item ${item.color}`;
+        div.innerHTML = `
+          <span>${item.text}</span>
+          <button class="action-btn" onclick="moveToTodo('${item.id}')">↩</button>
+        `;
+        doneSection.appendChild(div);
+      });
+
+      panel.appendChild(todoSection);
+      panel.appendChild(doneSection);
+    }
+
+    function renderDateList() {
+      const list = document.getElementById("date-list");
+      list.innerHTML = '';
+      Object.keys(tasks).sort().forEach(date => {
+        const btn = document.createElement("button");
+        btn.textContent = date;
+        btn.onclick = () => switchDate(date);
+        list.appendChild(btn);
+      });
+    }
+
+    function exportTasks() {
+      let text = '';
+      Object.keys(tasks).forEach(date => {
+        text += `【${date}】\n待辦：\n`;
+        tasks[date].todo.forEach(item => {
+          text += `- ${item.text}\n`;
+        });
+        text += `已完成：\n`;
+        tasks[date].done.forEach(item => {
+          text += `- ${item.text}\n`;
+        });
+        text += '\n';
+      });
+
+      const blob = new Blob([text], { type: 'text/plain' });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "todo_list.txt";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // 初始化當前日期為今天，並設為預設輸入日期
+    window.onload = () => {
+      loadTasks();
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById("item-date").value = today;
+      if (!tasks[today]) tasks[today] = { todo: [], done: [] };
+      currentDate = today;
+      renderDateList();
+      renderTasks();
+    };
+  </script>
+</body>
+</html>
