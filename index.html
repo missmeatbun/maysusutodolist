@@ -219,4 +219,17 @@
         doneSection.appendChild(div);
       });
 
-      panel.appendChild(tod
+      panel.appendChild(todoSection);
+      panel.appendChild(doneSection);
+    }
+
+    window.onload = async () => {
+      const today = new Date().toISOString().split('T')[0];
+      currentDate = today;
+      document.getElementById("item-date").value = today;
+      await renderDateList();
+      await switchDate(today);
+    };
+  </script>
+</body>
+</html>
