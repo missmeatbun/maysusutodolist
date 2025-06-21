@@ -85,7 +85,7 @@
       <option value="color2">重要</option>
       <option value="color3">一般</option>
     </select>
-    <button onclick="createItem()">新增</button>
+    <button id="create-btn">新增</button>
   </div>
 
   <div id="content">
@@ -93,7 +93,7 @@
     <div id="todo-panel"></div>
   </div>
 
-  <!-- ✅ Firebase CDN (compat) -->
+  <!-- Firebase CDN (compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
@@ -111,7 +111,7 @@
     const db = firebase.firestore();
     let currentDate = '';
 
-    window.fetchTasksForDate = async function(date) {
+    async function fetchTasksForDate(date) {
       try {
         const doc = await db.collection("todos").doc(date).get();
         return doc.exists ? doc.data() : { todo: [], done: [] };
@@ -119,17 +119,17 @@
         console.error("讀取資料錯誤：", error);
         return { todo: [], done: [] };
       }
-    };
+    }
 
-    window.saveTasks = async function(date, data) {
+    async function saveTasks(date, data) {
       try {
         await db.collection("todos").doc(date).set(data);
       } catch (error) {
         console.error("儲存資料錯誤：", error);
       }
-    };
+    }
 
-    window.renderDateList = async function() {
+    async function renderDateList() {
       try {
         const snapshot = await db.collection("todos").get();
         const list = document.getElementById("date-list");
@@ -143,16 +143,16 @@
       } catch (error) {
         console.error("渲染日期清單錯誤：", error);
       }
-    };
+    }
 
-    window.switchDate = async function(date) {
+    async function switchDate(date) {
       currentDate = date;
       document.getElementById("item-date").value = date;
       const data = await fetchTasksForDate(date);
       renderTasks(data);
-    };
+    }
 
-    window.createItem = async function() {
+    async function createItem() {
       const text = document.getElementById("item-text").value;
       const color = document.getElementById("item-color").value;
       let date = document.getElementById("item-date").value;
@@ -170,9 +170,9 @@
         console.error("新增事項錯誤：", error);
         alert("新增事項時發生錯誤，請查看主控台日誌。");
       }
-    };
+    }
 
-    window.moveToDone = async function(id) {
+    async function moveToDone(id) {
       const data = await fetchTasksForDate(currentDate);
       const index = data.todo.findIndex(item => item.id === id);
       if (index !== -1) {
@@ -181,9 +181,9 @@
         await saveTasks(currentDate, data);
         renderTasks(data);
       }
-    };
+    }
 
-    window.moveToTodo = async function(id) {
+    async function moveToTodo(id) {
       const data = await fetchTasksForDate(currentDate);
       const index = data.done.findIndex(item => item.id === id);
       if (index !== -1) {
@@ -192,7 +192,7 @@
         await saveTasks(currentDate, data);
         renderTasks(data);
       }
-    };
+    }
 
     function renderTasks(data) {
       const panel = document.getElementById("todo-panel");
@@ -228,6 +228,9 @@
       document.getElementById("item-date").value = today;
       await renderDateList();
       await switchDate(today);
+
+      // ✅ 新增按鈕事件綁定
+      document.getElementById("create-btn").addEventListener("click", createItem);
     };
   </script>
 </body>
