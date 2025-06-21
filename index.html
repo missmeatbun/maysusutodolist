@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>待辦事項系統</title>
   <style>
     body {
@@ -76,6 +76,7 @@
   <header>
     <h2>待辦事項系統</h2>
   </header>
+
   <div id="editor-panel">
     <input type="text" id="item-text" placeholder="事項名稱">
     <input type="date" id="item-date">
@@ -86,148 +87,136 @@
     </select>
     <button onclick="createItem()">新增</button>
   </div>
+
   <div id="content">
     <div id="date-list"></div>
     <div id="todo-panel"></div>
   </div>
 
-  <!-- Firebase CDN -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
+  <!-- ✅ Firebase CDN － compat 版本支援非模組 HTML 環境 -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
   <script>
-    window.addEventListener('DOMContentLoaded', async () => {
-      const firebaseConfig = {
-        apiKey: "AIzaSyAOGUZy8pM_hieZqzPSrEYdhoJnFb-ubis",
-        authDomain: "maysusutodolist.firebaseapp.com",
-        projectId: "maysusutodolist",
-        storageBucket: "maysusutodolist.firebasestorage.app",
-        messagingSenderId: "975249139081",
-        appId: "1:975249139081:web:bab395504850d4bfd3ed58"
-      };
+    const firebaseConfig = {
+      apiKey: "AIzaSyAOGUZy8pM_hieZqzPSrEYdhoJnFb-ubis",
+      authDomain: "maysusutodolist.firebaseapp.com",
+      projectId: "maysusutodolist",
+      storageBucket: "maysusutodolist.firebasestorage.app",
+      messagingSenderId: "975249139081",
+      appId: "1:975249139081:web:bab395504850d4bfd3ed58"
+    };
 
-      const app = firebase.initializeApp(firebaseConfig);
-      const db = firebase.firestore(app);
-      let currentDate = '';
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
 
-      async function fetchTasksForDate(date) {
-        try {
-          const docRef = db.collection("todos").doc(date);
-          const doc = await docRef.get();
-          return doc.exists ? doc.data() : { todo: [], done: [] };
-        } catch (error) {
-          console.error("讀取資料錯誤：", error);
-          return { todo: [], done: [] };
-        }
+    let currentDate = '';
+
+    async function fetchTasksForDate(date) {
+      try {
+        const doc = await db.collection("todos").doc(date).get();
+        return doc.exists ? doc.data() : { todo: [], done: [] };
+      } catch (error) {
+        console.error("讀取資料錯誤：", error);
+        return { todo: [], done: [] };
       }
+    }
 
-      async function saveTasks(date, data) {
-        try {
-          await db.collection("todos").doc(date).set(data);
-        } catch (error) {
-          console.error("儲存資料錯誤：", error);
-        }
+    async function saveTasks(date, data) {
+      try {
+        await db.collection("todos").doc(date).set(data);
+      } catch (error) {
+        console.error("儲存資料錯誤：", error);
       }
+    }
 
-      async function renderDateList() {
-        try {
-          const snapshot = await db.collection("todos").get();
-          const list = document.getElementById("date-list");
-          list.innerHTML = '';
-          snapshot.forEach(doc => {
-            const btn = document.createElement("button");
-            btn.textContent = doc.id;
-            btn.onclick = () => switchDate(doc.id);
-            list.appendChild(btn);
-          });
-        } catch (error) {
-          console.error("渲染日期清單錯誤：", error);
-        }
+    async function renderDateList() {
+      try {
+        const snapshot = await db.collection("todos").get();
+        const list = document.getElementById("date-list");
+        list.innerHTML = '';
+        snapshot.forEach(doc => {
+          const btn = document.createElement("button");
+          btn.textContent = doc.id;
+          btn.onclick = () => switchDate(doc.id);
+          list.appendChild(btn);
+        });
+      } catch (error) {
+        console.error("渲染日期清單錯誤：", error);
       }
+    }
 
-      async function switchDate(date) {
-        currentDate = date;
-        document.getElementById("item-date").value = date;
+    async function switchDate(date) {
+      currentDate = date;
+      document.getElementById("item-date").value = date;
+      const data = await fetchTasksForDate(date);
+      renderTasks(data);
+    }
+
+    async function createItem() {
+      const text = document.getElementById("item-text").value;
+      const color = document.getElementById("item-color").value;
+      let date = document.getElementById("item-date").value;
+      if (!text.trim()) return;
+      if (!date) date = currentDate;
+      try {
         const data = await fetchTasksForDate(date);
+        const id = `item-${Date.now()}`;
+        data.todo.push({ id, text, color });
+        await saveTasks(date, data);
+        if (currentDate === date) renderTasks(data);
+        await renderDateList();
+        document.getElementById("item-text").value = "";
+      } catch (error) {
+        console.error("新增事項錯誤：", error);
+        alert("新增事項時發生錯誤，請查看主控台日誌。");
+      }
+    }
+
+    async function moveToDone(id) {
+      const data = await fetchTasksForDate(currentDate);
+      const index = data.todo.findIndex(item => item.id === id);
+      if (index !== -1) {
+        const [item] = data.todo.splice(index, 1);
+        data.done.push(item);
+        await saveTasks(currentDate, data);
         renderTasks(data);
       }
+    }
 
-      window.createItem = async function () {
-        const text = document.getElementById("item-text").value;
-        const color = document.getElementById("item-color").value;
-        let date = document.getElementById("item-date").value;
-        if (!text.trim()) return;
-        if (!date) date = currentDate;
-        try {
-          const data = await fetchTasksForDate(date);
-          const id = `item-${Date.now()}`;
-          data.todo.push({ id, text, color });
-          await saveTasks(date, data);
-          if (currentDate === date) renderTasks(data);
-          await renderDateList();
-          document.getElementById("item-text").value = "";
-        } catch (error) {
-          console.error("新增事項錯誤：", error);
-          alert("新增事項時發生錯誤，請查看主控台日誌。");
-        }
+    async function moveToTodo(id) {
+      const data = await fetchTasksForDate(currentDate);
+      const index = data.done.findIndex(item => item.id === id);
+      if (index !== -1) {
+        const [item] = data.done.splice(index, 1);
+        data.todo.push(item);
+        await saveTasks(currentDate, data);
+        renderTasks(data);
       }
+    }
 
-      window.moveToDone = async function (id) {
-        const data = await fetchTasksForDate(currentDate);
-        const index = data.todo.findIndex(item => item.id === id);
-        if (index !== -1) {
-          const [item] = data.todo.splice(index, 1);
-          data.done.push(item);
-          await saveTasks(currentDate, data);
-          renderTasks(data);
-        }
-      }
+    function renderTasks(data) {
+      const panel = document.getElementById("todo-panel");
+      panel.innerHTML = '';
 
-      window.moveToTodo = async function (id) {
-        const data = await fetchTasksForDate(currentDate);
-        const index = data.done.findIndex(item => item.id === id);
-        if (index !== -1) {
-          const [item] = data.done.splice(index, 1);
-          data.todo.push(item);
-          await saveTasks(currentDate, data);
-          renderTasks(data);
-        }
-      }
+      const todoSection = document.createElement("div");
+      todoSection.className = "section";
+      todoSection.innerHTML = `<h4>待辦清單 - ${currentDate}</h4>`;
+      data.todo.forEach(item => {
+        const div = document.createElement("div");
+        div.className = `todo-item ${item.color}`;
+        div.innerHTML = `<span>${item.text}</span><button class="action-btn" onclick="moveToDone('${item.id}')">✔</button>`;
+        todoSection.appendChild(div);
+      });
 
-      function renderTasks(data) {
-        const panel = document.getElementById("todo-panel");
-        panel.innerHTML = '';
+      const doneSection = document.createElement("div");
+      doneSection.className = "section";
+      doneSection.innerHTML = `<h4>已完成事項</h4>`;
+      data.done.forEach(item => {
+        const div = document.createElement("div");
+        div.className = `todo-item ${item.color}`;
+        div.innerHTML = `<span>${item.text}</span><button class="action-btn" onclick="moveToTodo('${item.id}')">↩</button>`;
+        doneSection.appendChild(div);
+      });
 
-        const todoSection = document.createElement("div");
-        todoSection.className = "section";
-        todoSection.innerHTML = `<h4>待辦清單 - ${currentDate}</h4>`;
-        data.todo.forEach(item => {
-          const div = document.createElement("div");
-          div.className = `todo-item ${item.color}`;
-          div.innerHTML = `<span>${item.text}</span><button class="action-btn" onclick="moveToDone('${item.id}')">✔</button>`;
-          todoSection.appendChild(div);
-        });
-
-        const doneSection = document.createElement("div");
-        doneSection.className = "section";
-        doneSection.innerHTML = `<h4>已完成事項</h4>`;
-        data.done.forEach(item => {
-          const div = document.createElement("div");
-          div.className = `todo-item ${item.color}`;
-          div.innerHTML = `<span>${item.text}</span><button class="action-btn" onclick="moveToTodo('${item.id}')">↩</button>`;
-          doneSection.appendChild(div);
-        });
-
-        panel.appendChild(todoSection);
-        panel.appendChild(doneSection);
-      }
-
-      // 初始化
-      const today = new Date().toISOString().split('T')[0];
-      currentDate = today;
-      document.getElementById("item-date").value = today;
-      await renderDateList();
-      await switchDate(today);
-    });
-  </script>
-</body>
-</html>
+      panel.appendChild(tod
