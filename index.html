@@ -93,7 +93,7 @@
     <div id="todo-panel"></div>
   </div>
 
-  <!-- ✅ Firebase CDN － compat 版本支援非模組 HTML 環境 -->
+  <!-- ✅ Firebase CDN -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
@@ -107,12 +107,11 @@
       appId: "1:975249139081:web:bab395504850d4bfd3ed58"
     };
 
-    const app = firebase.initializeApp(firebaseConfig);
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-
     let currentDate = '';
 
-    async function fetchTasksForDate(date) {
+    window.fetchTasksForDate = async function(date) {
       try {
         const doc = await db.collection("todos").doc(date).get();
         return doc.exists ? doc.data() : { todo: [], done: [] };
@@ -120,17 +119,17 @@
         console.error("讀取資料錯誤：", error);
         return { todo: [], done: [] };
       }
-    }
+    };
 
-    async function saveTasks(date, data) {
+    window.saveTasks = async function(date, data) {
       try {
         await db.collection("todos").doc(date).set(data);
       } catch (error) {
         console.error("儲存資料錯誤：", error);
       }
-    }
+    };
 
-    async function renderDateList() {
+    window.renderDateList = async function() {
       try {
         const snapshot = await db.collection("todos").get();
         const list = document.getElementById("date-list");
@@ -144,16 +143,16 @@
       } catch (error) {
         console.error("渲染日期清單錯誤：", error);
       }
-    }
+    };
 
-    async function switchDate(date) {
+    window.switchDate = async function(date) {
       currentDate = date;
       document.getElementById("item-date").value = date;
       const data = await fetchTasksForDate(date);
       renderTasks(data);
-    }
+    };
 
-    async function createItem() {
+    window.createItem = async function() {
       const text = document.getElementById("item-text").value;
       const color = document.getElementById("item-color").value;
       let date = document.getElementById("item-date").value;
@@ -171,9 +170,9 @@
         console.error("新增事項錯誤：", error);
         alert("新增事項時發生錯誤，請查看主控台日誌。");
       }
-    }
+    };
 
-    async function moveToDone(id) {
+    window.moveToDone = async function(id) {
       const data = await fetchTasksForDate(currentDate);
       const index = data.todo.findIndex(item => item.id === id);
       if (index !== -1) {
@@ -182,9 +181,9 @@
         await saveTasks(currentDate, data);
         renderTasks(data);
       }
-    }
+    };
 
-    async function moveToTodo(id) {
+    window.moveToTodo = async function(id) {
       const data = await fetchTasksForDate(currentDate);
       const index = data.done.findIndex(item => item.id === id);
       if (index !== -1) {
@@ -193,7 +192,7 @@
         await saveTasks(currentDate, data);
         renderTasks(data);
       }
-    }
+    };
 
     function renderTasks(data) {
       const panel = document.getElementById("todo-panel");
