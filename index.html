@@ -56,10 +56,9 @@
       justify-content: space-between;
       align-items: center;
     }
-    .color1 { background-color: #b71c1c; } /* 非常重要 - 深紅色 */
-    .color2 { background-color: #fbc02d; color: #000; } /* 重要 - 黃色 */
-    .color3 { background-color: #388e3c; } /* 一般 - 綠色 */
-
+    .color1 { background-color: #b71c1c; }
+    .color2 { background-color: #fbc02d; color: #000; }
+    .color3 { background-color: #388e3c; }
     .action-btn {
       background: none;
       border: none;
@@ -72,14 +71,11 @@
       color: black;
     }
   </style>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
 </head>
 <body>
   <header>
     <h2>待辦事項系統</h2>
   </header>
-
   <div id="editor-panel">
     <input type="text" id="item-text" placeholder="事項名稱">
     <input type="date" id="item-date">
@@ -90,136 +86,148 @@
     </select>
     <button onclick="createItem()">新增</button>
   </div>
-
   <div id="content">
     <div id="date-list"></div>
     <div id="todo-panel"></div>
   </div>
 
+  <!-- Firebase CDN -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyAOGUZy8pM_hieZqzPSrEYdhoJnFb-ubis",
-      authDomain: "maysusutodolist.firebaseapp.com",
-      projectId: "maysusutodolist",
-      storageBucket: "maysusutodolist.firebasestorage.app",
-      messagingSenderId: "975249139081",
-      appId: "1:975249139081:web:bab395504850d4bfd3ed58"
-    };
+    window.addEventListener('DOMContentLoaded', async () => {
+      const firebaseConfig = {
+        apiKey: "AIzaSyAOGUZy8pM_hieZqzPSrEYdhoJnFb-ubis",
+        authDomain: "maysusutodolist.firebaseapp.com",
+        projectId: "maysusutodolist",
+        storageBucket: "maysusutodolist.firebasestorage.app",
+        messagingSenderId: "975249139081",
+        appId: "1:975249139081:web:bab395504850d4bfd3ed58"
+      };
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+      const app = firebase.initializeApp(firebaseConfig);
+      const db = firebase.firestore(app);
+      let currentDate = '';
 
-    let currentDate = '';
+      async function fetchTasksForDate(date) {
+        try {
+          const docRef = db.collection("todos").doc(date);
+          const doc = await docRef.get();
+          return doc.exists ? doc.data() : { todo: [], done: [] };
+        } catch (error) {
+          console.error("讀取資料錯誤：", error);
+          return { todo: [], done: [] };
+        }
+      }
 
-    async function fetchTasksForDate(date) {
-      const docRef = db.collection("todos").doc(date);
-      const doc = await docRef.get();
-      return doc.exists ? doc.data() : { todo: [], done: [] };
-    }
+      async function saveTasks(date, data) {
+        try {
+          await db.collection("todos").doc(date).set(data);
+        } catch (error) {
+          console.error("儲存資料錯誤：", error);
+        }
+      }
 
-    async function saveTasks(date, data) {
-      await db.collection("todos").doc(date).set(data);
-    }
+      async function renderDateList() {
+        try {
+          const snapshot = await db.collection("todos").get();
+          const list = document.getElementById("date-list");
+          list.innerHTML = '';
+          snapshot.forEach(doc => {
+            const btn = document.createElement("button");
+            btn.textContent = doc.id;
+            btn.onclick = () => switchDate(doc.id);
+            list.appendChild(btn);
+          });
+        } catch (error) {
+          console.error("渲染日期清單錯誤：", error);
+        }
+      }
 
-    async function renderDateList() {
-      const snapshot = await db.collection("todos").get();
-      const list = document.getElementById("date-list");
-      list.innerHTML = '';
-      snapshot.forEach(doc => {
-        const btn = document.createElement("button");
-        btn.textContent = doc.id;
-        btn.onclick = () => switchDate(doc.id);
-        list.appendChild(btn);
-      });
-    }
-
-    async function switchDate(date) {
-      currentDate = date;
-      document.getElementById("item-date").value = date;
-      const data = await fetchTasksForDate(date);
-      renderTasks(data);
-    }
-
-    async function createItem() {
-      const text = document.getElementById("item-text").value;
-      const color = document.getElementById("item-color").value;
-      let date = document.getElementById("item-date").value;
-      if (!text.trim()) return;
-      if (!date) date = currentDate;
-
-      const data = await fetchTasksForDate(date);
-      const id = `item-${Date.now()}`;
-      data.todo.push({ id, text, color });
-      await saveTasks(date, data);
-      if (currentDate === date) renderTasks(data);
-      renderDateList();
-
-      document.getElementById("item-text").value = "";
-    }
-
-    async function moveToDone(id) {
-      const data = await fetchTasksForDate(currentDate);
-      const index = data.todo.findIndex(item => item.id === id);
-      if (index !== -1) {
-        const [item] = data.todo.splice(index, 1);
-        data.done.push(item);
-        await saveTasks(currentDate, data);
+      async function switchDate(date) {
+        currentDate = date;
+        document.getElementById("item-date").value = date;
+        const data = await fetchTasksForDate(date);
         renderTasks(data);
       }
-    }
 
-    async function moveToTodo(id) {
-      const data = await fetchTasksForDate(currentDate);
-      const index = data.done.findIndex(item => item.id === id);
-      if (index !== -1) {
-        const [item] = data.done.splice(index, 1);
-        data.todo.push(item);
-        await saveTasks(currentDate, data);
-        renderTasks(data);
+      window.createItem = async function () {
+        const text = document.getElementById("item-text").value;
+        const color = document.getElementById("item-color").value;
+        let date = document.getElementById("item-date").value;
+        if (!text.trim()) return;
+        if (!date) date = currentDate;
+        try {
+          const data = await fetchTasksForDate(date);
+          const id = `item-${Date.now()}`;
+          data.todo.push({ id, text, color });
+          await saveTasks(date, data);
+          if (currentDate === date) renderTasks(data);
+          await renderDateList();
+          document.getElementById("item-text").value = "";
+        } catch (error) {
+          console.error("新增事項錯誤：", error);
+          alert("新增事項時發生錯誤，請查看主控台日誌。");
+        }
       }
-    }
 
-    function renderTasks(data) {
-      const panel = document.getElementById("todo-panel");
-      panel.innerHTML = '';
+      window.moveToDone = async function (id) {
+        const data = await fetchTasksForDate(currentDate);
+        const index = data.todo.findIndex(item => item.id === id);
+        if (index !== -1) {
+          const [item] = data.todo.splice(index, 1);
+          data.done.push(item);
+          await saveTasks(currentDate, data);
+          renderTasks(data);
+        }
+      }
 
-      const todoSection = document.createElement("div");
-      todoSection.className = "section";
-      todoSection.innerHTML = `<h4>待辦清單 - ${currentDate}</h4>`;
-      data.todo.forEach(item => {
-        const div = document.createElement("div");
-        div.className = `todo-item ${item.color}`;
-        div.innerHTML = `
-          <span>${item.text}</span>
-          <button class="action-btn" onclick="moveToDone('${item.id}')">✔</button>
-        `;
-        todoSection.appendChild(div);
-      });
+      window.moveToTodo = async function (id) {
+        const data = await fetchTasksForDate(currentDate);
+        const index = data.done.findIndex(item => item.id === id);
+        if (index !== -1) {
+          const [item] = data.done.splice(index, 1);
+          data.todo.push(item);
+          await saveTasks(currentDate, data);
+          renderTasks(data);
+        }
+      }
 
-      const doneSection = document.createElement("div");
-      doneSection.className = "section";
-      doneSection.innerHTML = `<h4>已完成事項</h4>`;
-      data.done.forEach(item => {
-        const div = document.createElement("div");
-        div.className = `todo-item ${item.color}`;
-        div.innerHTML = `
-          <span>${item.text}</span>
-          <button class="action-btn" onclick="moveToTodo('${item.id}')">↩</button>
-        `;
-        doneSection.appendChild(div);
-      });
+      function renderTasks(data) {
+        const panel = document.getElementById("todo-panel");
+        panel.innerHTML = '';
 
-      panel.appendChild(todoSection);
-      panel.appendChild(doneSection);
-    }
+        const todoSection = document.createElement("div");
+        todoSection.className = "section";
+        todoSection.innerHTML = `<h4>待辦清單 - ${currentDate}</h4>`;
+        data.todo.forEach(item => {
+          const div = document.createElement("div");
+          div.className = `todo-item ${item.color}`;
+          div.innerHTML = `<span>${item.text}</span><button class="action-btn" onclick="moveToDone('${item.id}')">✔</button>`;
+          todoSection.appendChild(div);
+        });
 
-    window.onload = async () => {
+        const doneSection = document.createElement("div");
+        doneSection.className = "section";
+        doneSection.innerHTML = `<h4>已完成事項</h4>`;
+        data.done.forEach(item => {
+          const div = document.createElement("div");
+          div.className = `todo-item ${item.color}`;
+          div.innerHTML = `<span>${item.text}</span><button class="action-btn" onclick="moveToTodo('${item.id}')">↩</button>`;
+          doneSection.appendChild(div);
+        });
+
+        panel.appendChild(todoSection);
+        panel.appendChild(doneSection);
+      }
+
+      // 初始化
       const today = new Date().toISOString().split('T')[0];
       currentDate = today;
       document.getElementById("item-date").value = today;
       await renderDateList();
       await switchDate(today);
-    };
+    });
   </script>
 </body>
 </html>
