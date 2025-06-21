@@ -208,6 +208,16 @@
       }
     }
 
+    async function deleteItem(id) {
+      const data = await fetchTasksForDate(currentDate);
+      const index = data.todo.findIndex(item => item.id === id);
+      if (index !== -1) {
+        data.todo.splice(index, 1);
+        await saveTasks(currentDate, data);
+        renderTasks(data);
+      }
+    }
+
     function renderTasks(data) {
       const panel = document.getElementById("todo-panel");
       panel.innerHTML = '';
@@ -222,6 +232,7 @@
           <span>${item.text}</span>
           <div>
             <button class="action-btn" onclick="editItem('${item.id}')">✏️</button>
+            <button class="action-btn" onclick="deleteItem('${item.id}')">🗑️</button>
             <button class="action-btn" onclick="moveToDone('${item.id}')">✔</button>
           </div>
         `;
