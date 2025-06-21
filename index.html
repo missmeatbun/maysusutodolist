@@ -194,6 +194,20 @@
       }
     }
 
+    async function editItem(id) {
+      const data = await fetchTasksForDate(currentDate);
+      const index = data.todo.findIndex(item => item.id === id);
+      if (index !== -1) {
+        const item = data.todo[index];
+        const newText = prompt("請輸入新的事項內容：", item.text);
+        if (newText && newText.trim() !== "") {
+          item.text = newText.trim();
+          await saveTasks(currentDate, data);
+          renderTasks(data);
+        }
+      }
+    }
+
     function renderTasks(data) {
       const panel = document.getElementById("todo-panel");
       panel.innerHTML = '';
@@ -204,7 +218,13 @@
       data.todo.forEach(item => {
         const div = document.createElement("div");
         div.className = `todo-item ${item.color}`;
-        div.innerHTML = `<span>${item.text}</span><button class="action-btn" onclick="moveToDone('${item.id}')">✔</button>`;
+        div.innerHTML = `
+          <span>${item.text}</span>
+          <div>
+            <button class="action-btn" onclick="editItem('${item.id}')">✏️</button>
+            <button class="action-btn" onclick="moveToDone('${item.id}')">✔</button>
+          </div>
+        `;
         todoSection.appendChild(div);
       });
 
@@ -228,8 +248,6 @@
       document.getElementById("item-date").value = today;
       await renderDateList();
       await switchDate(today);
-
-      // ✅ 新增按鈕事件綁定
       document.getElementById("create-btn").addEventListener("click", createItem);
     };
   </script>
