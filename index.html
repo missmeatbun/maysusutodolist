@@ -72,6 +72,9 @@
       color: black;
     }
   </style>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
 </head>
 <body>
   <header>
@@ -87,7 +90,6 @@
       <option value="color3">一般</option>
     </select>
     <button onclick="createItem()">新增</button>
-    <button onclick="exportTasks()">匯出</button>
   </div>
 
   <div id="content">
@@ -96,76 +98,96 @@
   </div>
 
   <script>
-    let itemId = 0;
-    let tasks = {}; // 儲存不同日期的資料
+    // Firebase 初始化
+    const firebaseConfig = {
+      apiKey: "AIzaSyAOGUZy8pM_hieZqzPSrEYdhoJnFb-ubis",
+      authDomain: "maysusutodolist.firebaseapp.com",
+      projectId: "maysusutodolist",
+      storageBucket: "maysusutodolist.firebasestorage.app",
+      messagingSenderId: "975249139081",
+      appId: "1:975249139081:web:bab395504850d4bfd3ed58"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
     let currentDate = '';
 
-    function saveTasks() {
-      localStorage.setItem('tasks', JSON.stringify(tasks));
+    async function fetchTasksForDate(date) {
+      const docRef = db.collection("todos").doc(date);
+      const doc = await docRef.get();
+      return doc.exists ? doc.data() : { todo: [], done: [] };
     }
 
-    function loadTasks() {
-      const stored = localStorage.getItem('tasks');
-      if (stored) {
-        tasks = JSON.parse(stored);
-      }
+    async function saveTasks(date, data) {
+      await db.collection("todos").doc(date).set(data);
     }
 
-    function switchDate(date) {
+    async function renderDateList() {
+      const snapshot = await db.collection("todos").get();
+      const list = document.getElementById("date-list");
+      list.innerHTML = '';
+      snapshot.forEach(doc => {
+        const btn = document.createElement("button");
+        btn.textContent = doc.id;
+        btn.onclick = () => switchDate(doc.id);
+        list.appendChild(btn);
+      });
+    }
+
+    async function switchDate(date) {
       currentDate = date;
-      renderTasks();
+      document.getElementById("item-date").value = date;
+      const data = await fetchTasksForDate(date);
+      renderTasks(data);
     }
 
-    function createItem() {
+    async function createItem() {
       const text = document.getElementById("item-text").value;
       const color = document.getElementById("item-color").value;
       let date = document.getElementById("item-date").value;
-      if (text.trim() === "") return;
-      if (date === '') date = currentDate;
+      if (!text.trim()) return;
+      if (!date) date = currentDate;
 
-      if (!tasks[date]) {
-        tasks[date] = { todo: [], done: [] };
-        renderDateList();
-      }
+      const data = await fetchTasksForDate(date);
+      data.todo.push({ id: `id-${Date.now()}`, text, color });
+      await saveTasks(date, data);
+      if (currentDate === date) renderTasks(data);
+      renderDateList();
 
-      tasks[date].todo.push({ id: `item-${itemId++}`, text, color });
-      saveTasks();
       document.getElementById("item-text").value = "";
-      document.getElementById("item-date").value = "";
-      if (currentDate === date) renderTasks();
     }
 
-    function moveToDone(id) {
-      const task = tasks[currentDate];
-      const index = task.todo.findIndex(item => item.id === id);
+    async function moveToDone(id) {
+      const data = await fetchTasksForDate(currentDate);
+      const index = data.todo.findIndex(item => item.id === id);
       if (index !== -1) {
-        const item = task.todo.splice(index, 1)[0];
-        task.done.push(item);
-        saveTasks();
-        renderTasks();
+        const [item] = data.todo.splice(index, 1);
+        data.done.push(item);
+        await saveTasks(currentDate, data);
+        renderTasks(data);
       }
     }
 
-    function moveToTodo(id) {
-      const task = tasks[currentDate];
-      const index = task.done.findIndex(item => item.id === id);
+    async function moveToTodo(id) {
+      const data = await fetchTasksForDate(currentDate);
+      const index = data.done.findIndex(item => item.id === id);
       if (index !== -1) {
-        const item = task.done.splice(index, 1)[0];
-        task.todo.push(item);
-        saveTasks();
-        renderTasks();
+        const [item] = data.done.splice(index, 1);
+        data.todo.push(item);
+        await saveTasks(currentDate, data);
+        renderTasks(data);
       }
     }
 
-    function renderTasks() {
+    function renderTasks(data) {
       const panel = document.getElementById("todo-panel");
       panel.innerHTML = '';
-      if (!tasks[currentDate]) return;
 
       const todoSection = document.createElement("div");
       todoSection.className = "section";
       todoSection.innerHTML = `<h4>待辦清單 - ${currentDate}</h4>`;
-      tasks[currentDate].todo.forEach(item => {
+      data.todo.forEach(item => {
         const div = document.createElement("div");
         div.className = `todo-item ${item.color}`;
         div.innerHTML = `
@@ -178,7 +200,7 @@
       const doneSection = document.createElement("div");
       doneSection.className = "section";
       doneSection.innerHTML = `<h4>已完成事項</h4>`;
-      tasks[currentDate].done.forEach(item => {
+      data.done.forEach(item => {
         const div = document.createElement("div");
         div.className = `todo-item ${item.color}`;
         div.innerHTML = `
@@ -192,49 +214,12 @@
       panel.appendChild(doneSection);
     }
 
-    function renderDateList() {
-      const list = document.getElementById("date-list");
-      list.innerHTML = '';
-      Object.keys(tasks).sort().forEach(date => {
-        const btn = document.createElement("button");
-        btn.textContent = date;
-        btn.onclick = () => switchDate(date);
-        list.appendChild(btn);
-      });
-    }
-
-    function exportTasks() {
-      let text = '';
-      Object.keys(tasks).forEach(date => {
-        text += `【${date}】\n待辦：\n`;
-        tasks[date].todo.forEach(item => {
-          text += `- ${item.text}\n`;
-        });
-        text += `已完成：\n`;
-        tasks[date].done.forEach(item => {
-          text += `- ${item.text}\n`;
-        });
-        text += '\n';
-      });
-
-      const blob = new Blob([text], { type: 'text/plain' });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "todo_list.txt";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-
-    // 初始化當前日期為今天，並設為預設輸入日期
-    window.onload = () => {
-      loadTasks();
+    window.onload = async () => {
       const today = new Date().toISOString().split('T')[0];
-      document.getElementById("item-date").value = today;
-      if (!tasks[today]) tasks[today] = { todo: [], done: [] };
       currentDate = today;
-      renderDateList();
-      renderTasks();
+      document.getElementById("item-date").value = today;
+      await renderDateList();
+      await switchDate(today);
     };
   </script>
 </body>
