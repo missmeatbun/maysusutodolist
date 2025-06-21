@@ -72,7 +72,6 @@
       color: black;
     }
   </style>
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
 </head>
@@ -98,7 +97,6 @@
   </div>
 
   <script>
-    // Firebase 初始化
     const firebaseConfig = {
       apiKey: "AIzaSyAOGUZy8pM_hieZqzPSrEYdhoJnFb-ubis",
       authDomain: "maysusutodolist.firebaseapp.com",
@@ -150,7 +148,8 @@
       if (!date) date = currentDate;
 
       const data = await fetchTasksForDate(date);
-      data.todo.push({ id: `id-${Date.now()}`, text, color });
+      const id = `item-${Date.now()}`;
+      data.todo.push({ id, text, color });
       await saveTasks(date, data);
       if (currentDate === date) renderTasks(data);
       renderDateList();
