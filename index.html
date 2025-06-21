@@ -2,7 +2,6 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>待辦事項系統</title>
   <style>
     body {
@@ -56,7 +55,6 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      flex-wrap: wrap;
     }
     .todo-item > span {
       flex: 1;
@@ -75,39 +73,6 @@
     }
     .action-btn:hover {
       color: black;
-    }
-
-    @media (max-width: 768px) {
-      #content {
-        flex-direction: column;
-      }
-      #date-list {
-        width: 100%;
-        border-right: none;
-        border-bottom: 1px solid #ccc;
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: flex-start;
-      }
-      #date-list button {
-        flex: 1 1 45%;
-        margin: 5px;
-        font-size: 16px;
-      }
-      #todo-panel {
-        padding: 10px;
-      }
-      #editor-panel {
-        padding: 10px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-      }
-      #editor-panel input, #editor-panel select, #editor-panel button {
-        flex: 1 1 100%;
-        font-size: 16px;
-        padding: 10px;
-      }
     }
   </style>
 </head>
